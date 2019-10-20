@@ -1,7 +1,8 @@
 import urllib.request, urllib.parse, urllib.error
 import time
 from fake_headers import Headers
-
+from bs4 import BeautifulSoup
+from random import randint
 '''
 Yahoo financial EOD data, however, still works on Yahoo financial pages.
 These download links uses a "crumb" for authentication with a cookie "B".
@@ -13,7 +14,6 @@ cookier = urllib.request.HTTPCookieProcessor()
 opener = urllib.request.build_opener(cookier)
 urllib.request.install_opener(opener)
 
-# Cookie and corresponding crumb
 _cookie = None
 _crumb = None
 
@@ -44,10 +44,9 @@ def get_cookie_crumb(ticker, info, header):
 	except urllib.error.HTTPError as error:
 		print("There was a problem with trying to collect the data. Don't worry, this happens.")
 		print("Try again in a few minutes, or with a different date range. ")
-		print(error)
 
 
-#This function load the corresponding history/divident/split from Yahoo.
+
 def load_yahoo_quote(ticker, begindate, enddate, header, info = 'quote'):
 	get_cookie_crumb(ticker, info, header)
 
@@ -59,6 +58,7 @@ def load_yahoo_quote(ticker, begindate, enddate, header, info = 'quote'):
 	param['period1'] = int(tb)
 	param['period2'] = int(te)
 	param['interval'] = '1d'
+	param['crumb'] = _crumb
 
 	if info == 'quote':
 		param['events'] = 'history'
@@ -68,50 +68,75 @@ def load_yahoo_quote(ticker, begindate, enddate, header, info = 'quote'):
 		param['events'] = 'split'
 
 	try:
-		param['crumb'] = _crumb
 		params = urllib.parse.urlencode(param)
 		url = 'https://query1.finance.yahoo.com/v7/finance/download/{}?{}'.format(ticker, params)
 		req = urllib.request.Request(url, headers = header)
 
-		# cookie automatically handled by opener
 		f = urllib.request.urlopen(req)
-		alines = f.read().decode('utf-8')
-		print(alines)
-
+		return f.read().decode('utf-8')
 
 	except Exception as error:
 		print("There was a problem with trying to collect the data. Don't worry, this happens.")
 		print("Try again in a few minutes, or with a different date range. ")
 		print(error)
-		return 0
+		return ""
 
 
+def get_proxy_ips(header):
+	proxies_request = urllib.request.Request('https://www.sslproxies.org/', headers = header)
+	open = urllib.request.urlopen(proxies_request).read().decode('utf8')
 
-def get_user_input():
+	soup = BeautifulSoup(open, 'html.parser')
+	proxies_table = soup.find(id='proxylisttable')
+
+	proxies = []
+	for row in proxies_table.tbody.find_all('tr'):
+		proxies.append({
+			'ip': row.find_all('td')[0].string,
+			'port': row.find_all('td')[1].string
+		})
+
+	return proxies
+
+
+def create_header():
+	user_agent = Headers(headers=True).generate()['User-Agent']
+	header = {'User-Agent': user_agent}
+
+	proxies = get_proxy_ips(header)
+	proxy = proxies[randint(0, len(proxies) - 1)]
+	ip = proxy.get("ip")
+	port = proxy.get("port")
+
+	header = header["Proxy"] = ip + ":" + port
+	return header
+
+
+def get_user_input(directions):
+	print(directions)
 	user_input = input().upper()
 	print(f"Is '{user_input}' correct? 'n' to redo. Anything else to continue..")
 	confirm_input = input()
 
 	if confirm_input == "n":
-		print('please enter your input')
-		return get_user_input()
+		return get_user_input(directions)
 	return user_input.upper()
 
 
 if __name__ == '__main__':
 
-	print("Enter the stock ticker you want to scrape. Include any special characters. Hit enter after")
-	ticker = get_user_input()
+	ticker_directions = "Enter the stock ticker you want to scrape. Include any special characters. Hit enter after"
+	ticker = get_user_input(ticker_directions)
 
-	print("Desired start date of data. It must be in YYYY/MM/DD format Hit enter after")
-	start_date = get_user_input()
+	start_directions = "Desired start date of data. It must be in YYYY/MM/DD format Hit enter after"
+	start_date = get_user_input(start_directions)
 	start_date = start_date.replace("/", "")
 
-	print("Desired end date of data. It must be in YYYY/MM/DD format. Hit enter after")
-	end_date = get_user_input()
+	end_directions = "Desired end date of data. It must be in YYYY/MM/DD format. Hit enter after"
+	end_date = get_user_input(end_directions)
 	end_date = end_date.replace("/", "")
 
-	user_agent = Headers(headers=True).generate()['User-Agent']
-	header = {'User-Agent': user_agent}
+	header = create_header()
+	response = load_yahoo_quote(ticker, start_date, end_date, header)
 
-	load_yahoo_quote(ticker, start_date, end_date, header)
+	print(response)
