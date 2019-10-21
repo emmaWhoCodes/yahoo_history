@@ -1,8 +1,7 @@
 import urllib.request, urllib.parse, urllib.error
 import time
-from fake_headers import Headers
-from bs4 import BeautifulSoup
-from random import randint
+from Header import Header
+
 '''
 Yahoo financial EOD data, however, still works on Yahoo financial pages.
 These download links uses a "crumb" for authentication with a cookie "B".
@@ -44,7 +43,7 @@ def get_cookie_crumb(ticker, info, header):
 	except urllib.error.HTTPError as error:
 		print("There was a problem with trying to collect the data. Don't worry, this happens.")
 		print("Try again in a few minutes, or with a different date range. ")
-
+		return ""
 
 
 def load_yahoo_quote(ticker, begindate, enddate, header, info = 'quote'):
@@ -76,67 +75,66 @@ def load_yahoo_quote(ticker, begindate, enddate, header, info = 'quote'):
 		return f.read().decode('utf-8')
 
 	except Exception as error:
-		print("There was a problem with trying to collect the data. Don't worry, this happens.")
-		print("Try again in a few minutes, or with a different date range. ")
 		print(error)
 		return ""
 
 
-def get_proxy_ips(header):
-	proxies_request = urllib.request.Request('https://www.sslproxies.org/', headers = header)
-	open = urllib.request.urlopen(proxies_request).read().decode('utf8')
-
-	soup = BeautifulSoup(open, 'html.parser')
-	proxies_table = soup.find(id='proxylisttable')
-
-	proxies = []
-	for row in proxies_table.tbody.find_all('tr'):
-		proxies.append({
-			'ip': row.find_all('td')[0].string,
-			'port': row.find_all('td')[1].string
-		})
-
-	return proxies
-
-
-def create_header():
-	user_agent = Headers(headers=True).generate()['User-Agent']
-	header = {'User-Agent': user_agent}
-
-	proxies = get_proxy_ips(header)
-	proxy = proxies[randint(0, len(proxies) - 1)]
-	ip = proxy.get("ip")
-	port = proxy.get("port")
-
-	header = header["Proxy"] = ip + ":" + port
-	return header
-
-
-def get_user_input(directions):
+def confirm_input(directions):
 	print(directions)
 	user_input = input().upper()
 	print(f"Is '{user_input}' correct? 'n' to redo. Anything else to continue..")
-	confirm_input = input()
+	confirmation = input()
 
-	if confirm_input == "n":
-		return get_user_input(directions)
+	if confirmation == "n":
+		return confirm_input(directions)
 	return user_input.upper()
 
 
+def confirm_date(directions):
+	input = confirm_input(directions)
+	input = input.replace("/", "")
+	month = input[0:2]
+	day = input[2:4]
+	year = input[4:8]
+	return year + month	+ day
+
+
 if __name__ == '__main__':
+	h = Header()
 
-	ticker_directions = "Enter the stock ticker you want to scrape. Include any special characters. Hit enter after"
-	ticker = get_user_input(ticker_directions)
+	while True:
 
-	start_directions = "Desired start date of data. It must be in YYYY/MM/DD format Hit enter after"
-	start_date = get_user_input(start_directions)
-	start_date = start_date.replace("/", "")
+		ticker_directions = "Enter the stock ticker you want to scrape. Include any special characters. Hit enter after"
+		ticker = confirm_input(ticker_directions)
 
-	end_directions = "Desired end date of data. It must be in YYYY/MM/DD format. Hit enter after"
-	end_date = get_user_input(end_directions)
-	end_date = end_date.replace("/", "")
+		start_directions = "Desired start date of data. It must be in MM/DD/YYYY format Hit enter after"
+		start_date = confirm_date(start_directions)
 
-	header = create_header()
-	response = load_yahoo_quote(ticker, start_date, end_date, header)
+		end_directions = "Desired end date of data. It must be in MM/DD/YYYY format. Hit enter after"
+		end_date = confirm_date(end_directions)
 
-	print(response)
+
+		header = h.create_header()
+		response = load_yahoo_quote(ticker, start_date, end_date, header)
+
+		if response == "":
+			for i in range(0, 5):
+				time.sleep(20)
+				header = h.create_header()
+				response = load_yahoo_quote(ticker, start_date, end_date, header)
+				if response != "":
+					break
+
+		if response != "":
+			print('Successfully. Please provide the filename to store it. It will be saved as a csv file')
+			file = input()
+			f = open(file, 'w+')
+			f.write("date,open,high,low,close,adj close,volume")
+			f.write(response)
+		else:
+			print("darn, the data couldn't be retrieved. Check the dates or ticker, or try again in a bit.")
+
+		print("Do you want to continue? y / n")
+		exit = input()
+		if exit.lower() == 'n':
+			break

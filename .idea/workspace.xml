@@ -2,6 +2,7 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="06048368-a762-458d-a055-32a4e6f4b62a" name="Default Changelist" comment="">
+      <change afterPath="$PROJECT_DIR$/Header.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/yahoo_history.py" beforeDir="false" afterPath="$PROJECT_DIR$/yahoo_history.py" afterDir="false" />
     </list>
