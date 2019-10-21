@@ -99,11 +99,13 @@ def confirm_date(directions):
 	return year + month	+ day
 
 
+#This just runs a daemon like process for a user until they decides to quit.
+#It allows multiple queries per session.
+#TODO: multiple ticker searches in the same time interval.
 if __name__ == '__main__':
 	h = Header()
 
 	while True:
-
 		ticker_directions = "Enter the stock ticker you want to scrape. Include any special characters. Hit enter after"
 		ticker = confirm_input(ticker_directions)
 
@@ -117,6 +119,7 @@ if __name__ == '__main__':
 		header = h.create_header()
 		response = load_yahoo_quote(ticker, start_date, end_date, header)
 
+		#takes a few more tries
 		if response == "":
 			for i in range(0, 5):
 				time.sleep(20)
@@ -125,8 +128,9 @@ if __name__ == '__main__':
 				if response != "":
 					break
 
+
 		if response != "":
-			print('Successfully. Please provide the filename to store it. It will be saved as a csv file')
+			print('Success.Provide a filename for storage. It will be saved as a csv file')
 			file = input()
 			f = open(file, 'w+')
 			f.write("date,open,high,low,close,adj close,volume")

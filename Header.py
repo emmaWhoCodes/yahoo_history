@@ -9,6 +9,7 @@ class Header:
 
     def __init__(self):
         self.proxies = []
+        self.calls = 0
 
     def get_proxy_ips(self, header):
         proxies_request = urllib.request.Request('https://www.sslproxies.org/', headers=header)
@@ -28,11 +29,13 @@ class Header:
 
 
     def create_header(self):
+        self.calls += 1
         user_agent = Headers(headers=True).generate()['User-Agent']
         header = {'User-Agent': user_agent}
 
-        if len(self.proxies) == 0:
-             self.proxies = self.get_proxy_ips(header)
+        if len(self.proxies) == 0 or self.calls == 20:
+            self.proxies = self.get_proxy_ips(header)
+            self.calls = 0
 
         proxy = self.proxies[randint(0, len(self.proxies) - 1)]
 
